@@ -1,7 +1,10 @@
-from dataloader import DatasetLoader
+from dataloader import DatasetLoader, CategoriesSampler
 from utils.types import LearningPhase
 
 dataset = DatasetLoader(LearningPhase.TRAIN, './data/mini')
 
-for i in dataset:
+# print(dataset.label)
+sampler = CategoriesSampler(dataset.label, 8, 5, 1)
+
+for i in sampler:
     print(i)

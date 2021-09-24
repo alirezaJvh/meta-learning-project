@@ -13,7 +13,7 @@ import numpy as np
 
 class DatasetLoader(Dataset):
 
-    def __init__(self, setname: LearningPhase, dataset_dir: str, train_augment: bool = False):
+    def __init__(self, setname: LearningPhase, dataset_dir: str, train_augment: bool = False) -> None:
         PATH, label_list = self.__set_path(setname, dataset_dir)
         data, label = [], []
         folders_path = [osp.join(PATH, label_item) for label_item in label_list if os.path.isdir(osp.join(PATH, label_item))]
