@@ -67,9 +67,9 @@ class DatasetLoader(Dataset):
     def __len__(self) -> int:
         return len(self.data)
 
-    def __getitem__(self, idx) -> Tuple[Any, int]:
+    def __getitem__(self, idx) -> Tuple[Tensor, int]:
         path, label = self.data[idx], self.label[idx]
-        image = Image.open(path).convert('RGB')
+        image = self.transform(Image.open(path).convert('RGB'))
         return image, label
 
         

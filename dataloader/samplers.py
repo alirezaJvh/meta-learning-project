@@ -22,7 +22,7 @@ class CategoriesSampler():
         return self.num_batch
 
     def __iter__(self) -> Generator[Tensor, None, None]:
-        for i_batch in range(self.num_batch):
+        for _ in range(self.num_batch):
             batch = []
             classes = torch.randperm(len(self.m_ind))[:self.way]
             for c in classes:
