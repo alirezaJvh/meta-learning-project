@@ -1,5 +1,5 @@
 {
-    "name": "Mnist_LeNet",
+    "name": "MetaLearningIdea",
     "n_gpu": 1,
 
     "arch": {
@@ -7,7 +7,7 @@
         "args": {}
     },
     "data_loader": {
-        "type": "MnistDataLoader",
+        "type": "DatasetLoader",
         "args":{
             "data_dir": "data/",
             "batch_size": 128,
