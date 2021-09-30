@@ -1,38 +1,72 @@
+import os
+import os.path as osp
+from typing import Tuple
 import numpy as np
+from torch.functional import Tensor
+from torch.utils.data.dataloader import DataLoader
+import tqdm
 import torch
 from torchvision.utils import make_grid
 from base import BaseTrainer
+from model.model import Model
 from utils import inf_loop, MetricTracker
-
+from torch.utils.tensorboard import SummaryWriter
 
 class Trainer():
     """
     Trainer class
     """
-    def __init__(self, model, criterion, metric_ftns, 
-                 optimizer,  
-                 device,
-                 data_loader, 
-                 valid_data_loader=None, 
-                 lr_scheduler=None, 
-                 len_epoch=None):
+    def __init__(self, 
+                 model: Model, 
+                 optimizer: torch.optim,  
+                 device: str,
+                 args: dict,
+                 len_epoch: int,
+                 data_loader: DataLoader, 
+                 valid_data_loader: DataLoader, 
+                 lr_scheduler = None) -> None:
         super().__init__()
+
+        self.model = model        
         self.device = device
         self.data_loader = data_loader
-        if len_epoch is None:
-            # epoch-based training
-            self.len_epoch = len(self.data_loader)
-        else:
-            # iteration-based training
-            self.data_loader = inf_loop(data_loader)
-            self.len_epoch = len_epoch
         self.valid_data_loader = valid_data_loader
         self.do_validation = self.valid_data_loader is not None
         self.lr_scheduler = lr_scheduler
-        self.log_step = int(np.sqrt(data_loader.batch_size))
+        self.args = args
+        # self.save_path = self.__set_save_path()
 
-        self.train_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
-        self.valid_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
+    def train(self):
+        # writer = SummaryWriter(self.save_path)
+        train_label, test_label = self.__set_label()
+        tqdm_gen = tqdm.tqdm(self.data_loader)
+        for i, batch in enumerate(tqdm_gen, 1):
+            if self.device == 'cuda':
+                data, _ = [_.cuda() for _ in batch]
+            else:
+                data = batch[0]
+        # split train and test data of task
+        train_data, test_data = self.__split_task_data(data)
+        predict = self.model((train_data, train_label, test_data))
+
+        print(predict)
+
+
+    def __set_label(self) -> Tuple[Tensor, Tensor]:
+        test_label = torch.arange(self.args.way).repeat(self.args.val_query)
+        train_label = torch.arange(self.args.way).repeat(self.args.shot)
+        if self.device == 'cuda':
+            test_label = test_label.type(torch.cuda.LongTensor)
+            train_label = train_label.type(torch.cuda.LongTensor)
+        else:
+            test_label = test_label.type(torch.LongTensor)
+            train_label = train_label.type(torch.LongTensor)
+        return train_label, test_label
+
+    def __split_task_data(self, data) -> Tuple[Tensor, Tensor]:
+        train_index = self.args.shot * self.args.way
+        train_data, test_data = data[:train_index], data[train_index:]
+        return train_data, test_dataembedding_query
 
     def _train_epoch(self, epoch):
         """

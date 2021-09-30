@@ -19,9 +19,7 @@ np.random.seed(SEED)
 
 
 def main(config):
-    # logger = config.get_logger('train')
-
-    # setup data_loader instances
+    # setup train-loader
     train_dataset = DatasetLoader(LearningPhase.TRAIN, config.dataset_dir)
     train_sampler = CategoriesSampler(train_dataset.label, 
                                       config.num_batch, 
@@ -31,7 +29,7 @@ def main(config):
                               batch_sampler = train_sampler,
                               num_workers = 2,
                               pin_memory = True)
-
+    # setup validation-loader
     val_dataset = DatasetLoader(LearningPhase.VAL, config.dataset_dir)
     val_sampler = CategoriesSampler(val_dataset.label,
                                     config.num_batch,
@@ -44,21 +42,10 @@ def main(config):
 
     # build model architecture, then print to console
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    model = Model().to(device)
     
-    print(model.parameters())
+    model = Model(update_step = config.update_step).to(device)
 
-    # logger.info(model)
-
-    # TODO: need DataParallel ?
-    # prepare for (multi-device) GPU training
-    # device, device_ids = prepare_device(config['n_gpu'])
-    # if len(device_ids) > 1:
-    #     model = torch.nn.DataParallel(model, device_ids=device_ids)
-
-    # build optimizer, learning rate scheduler. delete every lines containing lr_scheduler for disabling scheduler
-    trainable_params = filter(lambda p: p.requires_grad, model.parameters())
-    
+    print(type(train_loader))
     
     optimizer = torch.optim.Adam([
         {'params': model.learner.parameters(), 'lr': config.learner_lr},
@@ -67,17 +54,14 @@ def main(config):
     # TODO: set lr scheduler
     # lr_scheduler = config.init_obj('lr_scheduler', torch.optim.lr_scheduler, optimizer)
 
-    # trainer = Trainer(model, 
-    #                   criterion,
-    #                   metrics,
-    #                   optimizer,
-    #                   config=config,
-    #                   device=device,
-    #                   data_loader = train_loader,lemetmarner
-    #                   valid_data_loader= valid_data_loader,
-    #                   lr_scheduler=lr_scheduler)
-
-    # trainer.train()
+    trainer = Trainer(model = model,                    
+                      optimizer = optimizer,
+                      device = device,
+                      len_epoch = config.max_epoch,
+                      data_loader = train_loader,
+                      args = config,
+                      valid_data_loader= val_loader)
+    trainer.train()
 
 
 if __name__ == '__main__':
@@ -92,8 +76,8 @@ if __name__ == '__main__':
     parser.add_argument('--dataset_dir', type=str, default='./data/mini/') # Dataset folder
 
     # Parameters for meta-train phase
-    parser.add_argument('--max_epoch', type=int, default=100) # Epoch number for meta-train phase
-    parser.add_argument('--num_batch', type=int, default=100) # The number for different tasks used for meta-train
+    parser.add_argument('--max_epoch', type=int, default=1) # Epoch number for meta-train phase
+    parser.add_argument('--num_batch', type=int, default=10) # The number for different tasks used for meta-train
     parser.add_argument('--shot', type=int, default=1) # Shot number, how many samples for one class in a task
     parser.add_argument('--way', type=int, default=5) # Way number, how many classes in a task
     parser.add_argument('--train_query', type=int, default=15) # The number of training samples for each class in a task
