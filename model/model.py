@@ -1,31 +1,28 @@
-from model.model_based import SimpleMlp
+from model.learner import Learner
+from model.meta_learner import MetaLearner
 import torch.nn as nn
 import torch.nn.functional as F
-# from base import BaseModel
+from torchvision import models
 
-# class FinalModel(BaseModel):
-#     def __init__(self, num_classes=10):
-#         super().__init__()
-#         self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
-#         self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
-#         self.conv2_drop = nn.Dropout2d()
-#         self.fc1 = nn.Linear(320, 50)
-#         self.fc2 = nn.Linear(50, num_classes)
+class Model(nn.Module):
 
-#    SimpleMl def forward(self, x):
-#         x = F.relu(F.max_pool2d(self.conv1(x), 2))
-#         x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
-#         x = x.view(-1, 320)
-#         x = F.relu(self.fc1(x))
-#         x = F.dropout(x, training=self.training)
-#         x = self.fc2(x)
-#         return F.log_softmax(x, dim=1)
+    def __init__(self,mode = 'meta-train',num_class = 64) -> None:
+        super(Model, self).__init__()
+        self.pretrain = models.resnet18(pretrained = True)
+        self.meta_learner = MetaLearner(input_dim = 1000, output_dim = 64)
+        self.learner = Learner(input_dim = 1000)
+        self.__freeze_pretrain()
+
+    def forward(self, data):
+        # meta-train
+        data_shot, label_shot, data_query = data
+        embedding_query = self.pretrain(data_query)
+        embdedding_shot = self.pretrain(data_shot)
+        # task_parameter = self.learner(data_shot)
+        print('task parameter')
+
+    def __freeze_pretrain(self) -> None:
+        for param in self.pretrain.parameters():
+            param.requires_grad = False
 
 
-class FinalModel(nn.Module):
-
-    def __init__(self) -> None:
-        super().__init__()
-
-    def forward(self):
-        pass

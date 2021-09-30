@@ -5,14 +5,18 @@ from base import BaseTrainer
 from utils import inf_loop, MetricTracker
 
 
-class Trainer(BaseTrainer):
+class Trainer():
     """
     Trainer class
     """
-    def __init__(self, model, criterion, metric_ftns, optimizer, config, device,
-                 data_loader, valid_data_loader=None, lr_scheduler=None, len_epoch=None):
-        super().__init__(model, criterion, metric_ftns, optimizer, config)
-        self.config = config
+    def __init__(self, model, criterion, metric_ftns, 
+                 optimizer,  
+                 device,
+                 data_loader, 
+                 valid_data_loader=None, 
+                 lr_scheduler=None, 
+                 len_epoch=None):
+        super().__init__()
         self.device = device
         self.data_loader = data_loader
         if len_epoch is None:
