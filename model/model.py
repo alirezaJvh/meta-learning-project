@@ -1,4 +1,6 @@
+from typing import Tuple
 import torch
+from torch.functional import Tensor
 from model.learner import Learner
 from model.meta_learner import MetaLearner
 import torch.nn as nn
@@ -16,34 +18,37 @@ class Model(nn.Module):
         self.update_step = update_step
         self.__freeze_unfreeze_param(self.pretrain)
 
-    def forward(self, data):
+    def forward(self, data: Tuple[Tensor, Tensor, Tensor]):
         # meta-train
-        data_shot, label_shot, data_query = data
-        embedding_query = self.pretrain(data_query)
-        embdedding_shot = self.pretrain(data_shot)
+        train_data, train_label, test_data = data
+        test_embedding = self.pretrain(test_data)
+        train_embedding = self.pretrain(train_data)
         if(self.mode == 'meta-train'):
-            return self.meta_train_forward(embdedding_shot, label_shot, embedding_query)
+            return self.meta_train_forward(train_embedding, train_label, test_embedding)
         else:
             # meta-test phase
             pass
     
-    def meta_train_forward(self, embedding_shot, label_shot, embedding_query):
+    def meta_train_forward(self, 
+                           train_embedding: Tensor, 
+                           train_label: Tensor, 
+                           test_embedding: Tensor) -> Tensor:
         # train meta-train
         for _ in range(self.update_step):
-            landa_param = self.learner(embedding_shot)
+            landa_param = self.learner(train_embedding)
             # parameter without bias
             meta_learner_param = next(self.meta_learner.parameters()) 
             # freeze meta_learner param
             self.__freeze_unfreeze_param(self.meta_learner)
             meta_learner_param += landa_param
-            train_predict = self.meta_learner(embedding_shot)
-            loss = F.cross_entropy(train_predict, label_shot)
+            train_predict = self.meta_learner(train_embedding)
+            loss = F.cross_entropy(train_predict, train_label)
             loss.backward()  
         # freeze learner param
         self.__freeze_unfreeze_param(self.learner)
         # unfreeze meta-learner param
         self.__freeze_unfreeze_param(self.meta_learner, required_grad = True)        
-        test_predict = self.meta_learner(embedding_query)
+        test_predict = self.meta_learner(test_embedding)
         return test_predict
         
     def __freeze_unfreeze_param(self, model, required_grad = False) -> None:
