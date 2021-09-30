@@ -66,7 +66,7 @@ class Trainer():
     def __split_task_data(self, data) -> Tuple[Tensor, Tensor]:
         train_index = self.args.shot * self.args.way
         train_data, test_data = data[:train_index], data[train_index:]
-        return train_data, test_dataembedding_query
+        return train_data, test_data
 
     def _train_epoch(self, epoch):
         """
