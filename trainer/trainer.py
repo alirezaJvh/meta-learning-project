@@ -41,14 +41,13 @@ class Trainer():
         train_label, test_label = self.__set_label()
         tqdm_gen = tqdm.tqdm(self.data_loader)
         for i, batch in enumerate(tqdm_gen, 1):
-            if self.device == 'cuda':
+            if self.device == 'cuda':              
                 data, _ = [_.cuda() for _ in batch]
             else:
                 data = batch[0]
         # split train and test data of task
         train_data, test_data = self.__split_task_data(data)
         predict = self.model((train_data, train_label, test_data))
-
         print(predict)
 
 
@@ -59,7 +58,7 @@ class Trainer():
             test_label = test_label.type(torch.cuda.LongTensor)
             train_label = train_label.type(torch.cuda.LongTensor)
         else:
-            test_label = test_label.type(torch.LongTensor)
+            test_label = test_label.type(torch.LongTensor)  
             train_label = train_label.type(torch.LongTensor)
         return train_label, test_label
 

@@ -9,7 +9,7 @@ from trainer import Trainer
 from utils import prepare_device
 from utils.types import LearningPhase
 from dataloader import DatasetLoader, CategoriesSampler
-
+# from torchviz import make_dot
 # fix random seeds for reproducibility
 SEED = 123
 torch.manual_seed(SEED)
@@ -43,10 +43,7 @@ def main(config):
     # build model architecture, then print to console
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
-    model = Model(update_step = config.update_step).to(device)
-
-    print(type(train_loader))
-    
+    model = Model(config.update_step, config.way).to(device)
     optimizer = torch.optim.Adam([
         {'params': model.learner.parameters(), 'lr': config.learner_lr},
         {'params': model.meta_learner.parameters(), 'lr': config.meta_lr}
