@@ -1,3 +1,4 @@
+import collections
 from typing import Tuple
 import torch
 from torch.functional import Tensor
@@ -16,13 +17,14 @@ class Model(nn.Module):
         self.meta_learner = MetaLearner(input_dim = 1000, output_dim = num_class)
         self.learner = Learner(input_dim = 1000)
         self.update_step = update_step
-        self.__freeze_unfreeze_param(self.pretrain)
+        self.learner_param, self.meta_learner_param = None, None
+        # freeze pretrain
+        for param in self.pretrain.parameters():
+            param.requires_grad = False
 
     def forward(self, data: Tuple[Tensor, Tensor, Tensor]):
         # meta-train
         train_data, train_label, test_data = data
-        print('train_data')
-        print(train_data.size())
         test_embedding = self.pretrain(test_data)
         train_embedding = self.pretrain(train_data)
         if(self.mode == 'meta-train'):
@@ -35,27 +37,34 @@ class Model(nn.Module):
                            train_embedding: Tensor, 
                            train_label: Tensor, 
                            test_embedding: Tensor) -> Tensor:
+        self.learner_param = self.learner.state_dict()
+        self.meta_learner_param = self.meta_learner.state_dict()
         # train meta-train
         for _ in range(self.update_step):
-            landa_param = self.learner(train_embedding)
-            print('landa')
-            print(landa_param.size())
-            # parameter without bias
-            meta_learner_param = next(self.meta_learner.parameters())
-            # freeze meta_learner param
-            self.__freeze_unfreeze_param(self.meta_learner)
-            meta_learner_param += landa_param
-            train_predict = self.meta_learner(train_embedding)
-            loss = F.cross_entropy(train_predict, train_label)
-            loss.backward()  
-        # freeze learner param
-        self.__freeze_unfreeze_param(self.learner)
-        # unfreeze meta-learner param
-        self.__freeze_unfreeze_param(self.meta_learner, required_grad = True)        
+            self.__update_learner(train_embedding, train_label) 
+        # undetach meta-learner param
+        self.meta_learner.load_state_dict(self.meta_learner_param)       
         test_predict = self.meta_learner(test_embedding)
         return test_predict
-        
-    def __freeze_unfreeze_param(self, model, required_grad = False) -> None:
-        for param in model.parameters():
-            param.requires_grad = required_grad
 
+    def freeze_learner(self) -> None:
+        new_learner_param = self.learner_param.copy()
+        for key in new_learner_param.keys():
+            new_learner_param[key] = new_learner_param[key].detach()
+        self.learner.load_state_dict(new_learner_param)
+
+    def unfreeze_learner(self) -> None:
+        self.learner.load_state_dict(self.learner_param)
+
+    def __update_learner(self, train_embedding: Tensor, train_label: Tensor) -> None:
+        theta_param = self.meta_learner_param['fc1.weight'].clone().detach()
+        landa_param = self.learner(train_embedding)
+        self.__set_meta_new_param(theta_param, landa_param)
+        train_predict = self.meta_learner(train_embedding)
+        loss = F.cross_entropy(train_predict, train_label)
+        loss.backward() 
+
+    def __set_meta_new_param(self, theta: Tensor, landa: Tensor) -> None:
+        new_param = self.meta_learner_param.copy()
+        new_param['fc1.weight'] = theta + landa
+        self.meta_learner.load_state_dict(new_param)
