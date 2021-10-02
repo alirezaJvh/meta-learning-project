@@ -11,6 +11,7 @@ from base import BaseTrainer
 from model.model import Model
 from utils import inf_loop, MetricTracker
 from torch.utils.tensorboard import SummaryWriter
+import torch.nn.functional as F
 
 class Trainer():
     """
@@ -34,33 +35,59 @@ class Trainer():
         self.do_validation = self.valid_data_loader is not None
         self.lr_scheduler = lr_scheduler
         self.args = args
+        self.optimizer = optimizer
         # self.save_path = self.__set_save_path()
 
     def train(self):
         # writer = SummaryWriter(self.save_path)
-        train_label, test_label = self.__set_label()
-        tqdm_gen = tqdm.tqdm(self.data_loader)
-        for i, batch in enumerate(tqdm_gen, 1):
-            if self.device == 'cuda':              
-                data, _ = [_.cuda() for _ in batch]
-            else:
-                data = batch[0]
-        # split train and test data of task
-        train_data, test_data = self.__split_task_data(data)
-        predict = self.model((train_data, train_label, test_data))
-        print(predict)
+        train_label = self.__set_label(self.args.shot)
+        for epoch in range(1, self.args.max_epoch):
+            self.model.train()
+            test_label = self.__set_label(self.args.train_query)
+            tqdm_gen = tqdm.tqdm(self.data_loader)
+            for i, batch in enumerate(tqdm_gen, 1):
+                if self.device == 'cuda':              
+                    data, _ = [_.cuda() for _ in batch]
+                else:
+                    data = batch[0]
+                # split train and test data of task
+                train_data, test_data = self.__split_task_data(data)
+                test_predict = self.model((train_data, train_label, test_data))
+                self.model.freeze_learner()
+                loss = F.cross_entropy(test_predict, test_label)
+                acc = self.count_acc(test_predict, test_label)
+                tqdm_gen.set_description('Epoch {}, Loss={:.4f} Acc={:.4f}'.format(epoch, loss.item(), acc))
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
+                self.model.unfreeze_learner()
+                
 
 
-    def __set_label(self) -> Tuple[Tensor, Tensor]:
-        test_label = torch.arange(self.args.way).repeat(self.args.val_query)
-        train_label = torch.arange(self.args.way).repeat(self.args.shot)
+    def count_acc(self, logits, label):
+        """The function to calculate the .
+        Args:
+        logits: input logits.
+        label: ground truth labels.
+        Return:
+        The output accuracy.
+        """
+        pred = F.softmax(logits, dim=1).argmax(dim=1)
+        if torch.cuda.is_available():
+            return (pred == label).type(torch.cuda.FloatTensor).mean().item()
+        return (pred == label).type(torch.FloatTensor).mean().item()
+
+
+
+
+
+    def __set_label(self, repeat: int) -> Tensor:
+        label = torch.arange(self.args.way).repeat(repeat)
         if self.device == 'cuda':
-            test_label = test_label.type(torch.cuda.LongTensor)
-            train_label = train_label.type(torch.cuda.LongTensor)
-        else:
-            test_label = test_label.type(torch.LongTensor)  
-            train_label = train_label.type(torch.LongTensor)
-        return train_label, test_label
+            label = label.type(torch.cuda.LongTensor)
+        else:            
+            label = label.type(torch.LongTensor)
+        return label
 
     def __split_task_data(self, data) -> Tuple[Tensor, Tensor]:
         train_index = self.args.shot * self.args.way
