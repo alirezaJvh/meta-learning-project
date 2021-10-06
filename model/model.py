@@ -25,15 +25,16 @@ class Model(nn.Module):
     def forward(self, data: Tuple[Tensor, Tensor, Tensor]):
         # meta-train
         train_data, train_label, test_data = data
-        test_embedding = self.pretrain(test_data)
         train_embedding = self.pretrain(train_data)
+        test_embedding = self.pretrain(test_data)
+
         if(self.mode == 'meta-train'):
             return self.meta_train_forward(train_embedding, train_label, test_embedding)
         else:
             # meta-test phase
             pass
     
-    def meta_train_forward(self, 
+    def meta_train_forward(self,
                            train_embedding: Tensor, 
                            train_label: Tensor, 
                            test_embedding: Tensor) -> Tensor:
@@ -41,10 +42,11 @@ class Model(nn.Module):
         self.meta_learner_param = self.meta_learner.state_dict()
         # train meta-train
         for _ in range(self.update_step):
-            self.__update_learner(train_embedding, train_label) 
-        # undetach meta-learner param
+            train_predict = self.__predict_model(train_embedding)
+            loss = F.cross_entropy(train_predict, train_label)
+            loss.backward() 
+        test_predict = self.__predict_model(test_embedding)
         self.meta_learner.load_state_dict(self.meta_learner_param)       
-        test_predict = self.meta_learner(test_embedding)
         return test_predict
 
     def freeze_learner(self) -> None:
@@ -56,15 +58,21 @@ class Model(nn.Module):
     def unfreeze_learner(self) -> None:
         self.learner.load_state_dict(self.learner_param)
 
-    def __update_learner(self, train_embedding: Tensor, train_label: Tensor) -> None:
-        theta_param = self.meta_learner_param['fc1.weight'].clone().detach()
-        landa_param = self.learner(train_embedding)
-        self.__set_meta_new_param(theta_param, landa_param)
-        train_predict = self.meta_learner(train_embedding)
-        loss = F.cross_entropy(train_predict, train_label)
-        loss.backward() 
-
     def __set_meta_new_param(self, theta: Tensor, landa: Tensor) -> None:
         new_param = self.meta_learner_param.copy()
+        # print('landa')
+        # print(landa.size())
+        # print('theta')
+        # print(new_param['fc1.weight'].size())
         new_param['fc1.weight'] = theta + landa
         self.meta_learner.load_state_dict(new_param)
+
+    def __predict_model(self, embedding: Tensor) -> Tensor:
+        theta_param = self.meta_learner_param['fc1.weight'].clone().detach()
+        landa_param = self.learner(embedding)
+        self.__set_meta_new_param(theta_param, landa_param)
+        predict = self.meta_learner(embedding)
+        return predict
+
+
+

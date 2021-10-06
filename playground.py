@@ -12,9 +12,12 @@ import torch
 # x = torch.ones(5, requires_grad = True)
 # y = x**2
 # w = x.clone().detach()
-# z = w**3
+# z = x**3
 
 # r = (y+z).sum()
 # r.backward()
 
 # print(x.grad)
+a = torch.tensor([[2.0, 3.0], [5.0, 4.0]])
+
+print(a.size())

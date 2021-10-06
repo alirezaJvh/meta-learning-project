@@ -10,7 +10,11 @@ class MetaLearner(nn.Module):
     
     def forward(self, x) -> Tensor:
         # TODO: landas parameter ?
+        # print('bbb')
+        # print(x.size())
         x = F.relu(self.fc1(x))
+        # print('meta learner')
+        # print(x.size())
         return x
 
 

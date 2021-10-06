@@ -1,7 +1,7 @@
 from torch.functional import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
-from torchvision import models
+import torch
 
 class Learner(nn.Module):
 
@@ -12,18 +12,16 @@ class Learner(nn.Module):
         self.fc3 = nn.Linear(256, 512)
         self.fc4 = nn.Linear(512, 1000)
 
-
-    # TODO: type annotation
     def forward(self, x: Tensor) -> Tensor:
+        # print('befor go to learner')
+        # print(x.size())
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
         x = F.relu(self.fc4(x))
+        # print('learner')
+        # print(x.size())
         # x = x.view(1000, 64)
         return x
-    
-    # def __freez_pretrain(self) -> None:
-    #     for param in self.pretrain.parameters():
-    #         param.requires_grad = False
-        
+ 
 
