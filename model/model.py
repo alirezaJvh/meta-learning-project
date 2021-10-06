@@ -10,13 +10,17 @@ from torchvision import models
 
 class Model(nn.Module):
 
-    def __init__(self,update_step: int, num_class: int, mode = 'meta-train') -> None:
+    def __init__(self, 
+                 way: int,  
+                 update_step: int,
+                 mode = 'meta-train') -> None:
         super(Model, self).__init__()
         self.mode = mode
         self.pretrain = models.resnet18(pretrained = True)
-        self.meta_learner = MetaLearner(input_dim = 1000, output_dim = num_class)
+        self.meta_learner = MetaLearner(input_dim = 1000, output_dim = way)
         self.learner = Learner(input_dim = 1000)
         self.update_step = update_step
+        self.way = way
         self.learner_param, self.meta_learner_param = None, None
         # freeze pretrain
         for param in self.pretrain.parameters():
@@ -31,7 +35,7 @@ class Model(nn.Module):
         if(self.mode == 'meta-train'):
             return self.meta_train_forward(train_embedding, train_label, test_embedding)
         else:
-            # meta-test phase
+            #TODO: meta-test phase
             pass
     
     def meta_train_forward(self,
@@ -60,19 +64,17 @@ class Model(nn.Module):
 
     def __set_meta_new_param(self, theta: Tensor, landa: Tensor) -> None:
         new_param = self.meta_learner_param.copy()
-        # print('landa')
-        # print(landa.size())
-        # print('theta')
-        # print(new_param['fc1.weight'].size())
         new_param['fc1.weight'] = theta + landa
         self.meta_learner.load_state_dict(new_param)
 
     def __predict_model(self, embedding: Tensor) -> Tensor:
         theta_param = self.meta_learner_param['fc1.weight'].clone().detach()
-        landa_param = self.learner(embedding)
+        mean_embedding = self.__mean_data(embedding)
+        landa_param = self.learner(mean_embedding)
         self.__set_meta_new_param(theta_param, landa_param)
         predict = self.meta_learner(embedding)
         return predict
 
-
-
+    def __mean_data(self, data: Tensor) -> Tensor:
+        data  = torch.tensor([data[way::self.way].cpu().detach().numpy() for way in range(self.way)]).cuda()
+        return torch.mean(data, 1)

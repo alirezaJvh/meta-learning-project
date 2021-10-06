@@ -28,20 +28,19 @@ class Trainer():
                  lr_scheduler = None) -> None:
         super().__init__()
 
+        self.args = args
         self.model = model        
         self.device = device
         self.data_loader = data_loader
         self.valid_data_loader = valid_data_loader
         self.do_validation = self.valid_data_loader is not None
         self.lr_scheduler = lr_scheduler
-        self.args = args
         self.optimizer = optimizer
         # self.save_path = self.__set_save_path()
 
     def train(self):
         # writer = SummaryWriter(self.save_path)
         train_label = self.__set_label(self.args.shot)
-        # self.args.max_epoch
         for epoch in range(1, self.args.max_epoch):
             self.model.train()
             test_label = self.__set_label(self.args.train_query)
@@ -61,14 +60,7 @@ class Trainer():
                 data = batch[0]
                 # split train and test data of task
             train_data, test_data = self.__split_task_data(data)
-            train_mean, test_mean = self.__mean_data(train_data, test_data)
-            # print('mean')
-            # print(train_mean.size())
-            # print(test_mean.size())
-            # print('label')
-            # print(train_label.size())
-            # print(test_label.size())
-            test_predict = self.model((train_mean, train_label, test_mean))
+            test_predict = self.model((train_data, train_label, test_data))
             self.model.freeze_learner()
             # print('label size')
             # print(test_predict.size())
@@ -83,6 +75,7 @@ class Trainer():
             # print('label size')
             # print(test_predict.size())
             # print(test_label.size())
+
     def count_acc(self, logits, label):
         """The function to calculate the .
         Args:
@@ -98,8 +91,7 @@ class Trainer():
 
 
     def __set_label(self, repeat: int) -> Tensor:
-        # label = torch.arange(self.args.way).repeat(repeat)
-        label = torch.arange(self.args.way)
+        label = torch.arange(self.args.way).repeat(repeat)
         if self.device == 'cuda':
             label = label.type(torch.cuda.LongTensor)
         else:            
@@ -110,12 +102,6 @@ class Trainer():
         train_index = self.args.shot * self.args.way
         train_data, test_data = data[:train_index], data[train_index:]
         return train_data, test_data
-
-    def __mean_data(self, train_data: Tensor, test_data: Tensor) -> Tuple[Tensor, Tensor]:
-        train  = torch.tensor([train_data[way::self.args.way].cpu().detach().numpy() for way in range(self.args.way)]).cuda()
-        test  = torch.tensor([test_data[way::self.args.way].cpu().detach().numpy() for way in range(self.args.way)]).cuda()
-        return torch.mean(train, 1), torch.mean(test, 1)
-
     def _valid_epoch(self, epoch):
         """
         Validate after training an epoch

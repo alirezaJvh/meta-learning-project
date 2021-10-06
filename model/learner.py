@@ -13,15 +13,10 @@ class Learner(nn.Module):
         self.fc4 = nn.Linear(512, 1000)
 
     def forward(self, x: Tensor) -> Tensor:
-        # print('befor go to learner')
-        # print(x.size())
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
         x = F.relu(self.fc4(x))
-        # print('learner')
-        # print(x.size())
-        # x = x.view(1000, 64)
         return x
  
 

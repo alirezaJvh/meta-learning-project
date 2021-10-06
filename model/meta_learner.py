@@ -8,13 +8,8 @@ class MetaLearner(nn.Module):
         super(MetaLearner, self).__init__()
         self.fc1 = nn.Linear(input_dim, output_dim)
     
-    def forward(self, x) -> Tensor:
-        # TODO: landas parameter ?
-        # print('bbb')
-        # print(x.size())
+    def forward(self, x) -> Tensor:        
         x = F.relu(self.fc1(x))
-        # print('meta learner')
-        # print(x.size())
         return x
 
 

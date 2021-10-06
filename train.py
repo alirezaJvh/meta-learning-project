@@ -43,7 +43,7 @@ def main(config):
     # build model architecture, then print to console
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
-    model = Model(config.update_step, config.way).to(device)
+    model = Model(config.way, config.update_step).to(device)
     optimizer = torch.optim.Adam([
         {'params': model.learner.parameters(), 'lr': config.learner_lr},
         {'params': model.meta_learner.parameters(), 'lr': config.meta_lr}
@@ -76,7 +76,7 @@ if __name__ == '__main__':
     # Parameters for meta-train phase
     parser.add_argument('--max_epoch', type=int, default=100) # Epoch number for meta-train phase
     parser.add_argument('--num_batch', type=int, default=100) # The number for different tasks used for meta-train
-    parser.add_argument('--shot', type=int, default=2) # Shot number, how many samples for one class in a task
+    parser.add_argument('--shot', type=int, default=4) # Shot number, how many samples for one class in a task
     parser.add_argument('--way', type=int, default=5) # Way number, how many classes in a task
     parser.add_argument('--train_query', type=int, default=15) # The number of training samples for each class in a task
     parser.add_argument('--val_query', type=int, default=15) # The number of test samples for each class in a task
