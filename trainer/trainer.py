@@ -41,29 +41,48 @@ class Trainer():
     def train(self):
         # writer = SummaryWriter(self.save_path)
         train_label = self.__set_label(self.args.shot)
+        # self.args.max_epoch
         for epoch in range(1, self.args.max_epoch):
             self.model.train()
             test_label = self.__set_label(self.args.train_query)
             tqdm_gen = tqdm.tqdm(self.data_loader)
-            for i, batch in enumerate(tqdm_gen, 1):
-                if self.device == 'cuda':              
-                    data, _ = [_.cuda() for _ in batch]
-                else:
-                    data = batch[0]
+            self.__train_epoch(epoch, tqdm_gen, train_label, test_label)
+
+
+    def __train_epoch(self, 
+                      epoch: int, 
+                      tqdm_gen: tqdm, 
+                      train_label: Tensor, 
+                      test_label: Tensor) -> None:
+        for i, batch in enumerate(tqdm_gen, 1):
+            if self.device == 'cuda':              
+                data, _ = [_.cuda() for _ in batch]
+            else:
+                data = batch[0]
                 # split train and test data of task
-                train_data, test_data = self.__split_task_data(data)
-                test_predict = self.model((train_data, train_label, test_data))
-                self.model.freeze_learner()
-                loss = F.cross_entropy(test_predict, test_label)
-                acc = self.count_acc(test_predict, test_label)
-                tqdm_gen.set_description('Epoch {}, Loss={:.4f} Acc={:.4f}'.format(epoch, loss.item(), acc))
-                self.optimizer.zero_grad()
-                loss.backward()
-                self.optimizer.step()
-                self.model.unfreeze_learner()
-                
-
-
+            train_data, test_data = self.__split_task_data(data)
+            train_mean, test_mean = self.__mean_data(train_data, test_data)
+            # print('mean')
+            # print(train_mean.size())
+            # print(test_mean.size())
+            # print('label')
+            # print(train_label.size())
+            # print(test_label.size())
+            test_predict = self.model((train_mean, train_label, test_mean))
+            self.model.freeze_learner()
+            # print('label size')
+            # print(test_predict.size())
+            # print(test_label.size())
+            loss = F.cross_entropy(test_predict, test_label)
+            acc = self.count_acc(test_predict, test_label)
+            tqdm_gen.set_description('Epoch {}, Loss={:.4f} Acc={:.4f}'.format(epoch, loss.item(), acc))
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+            self.model.unfreeze_learner()
+            # print('label size')
+            # print(test_predict.size())
+            # print(test_label.size())
     def count_acc(self, logits, label):
         """The function to calculate the .
         Args:
@@ -78,11 +97,9 @@ class Trainer():
         return (pred == label).type(torch.FloatTensor).mean().item()
 
 
-
-
-
     def __set_label(self, repeat: int) -> Tensor:
-        label = torch.arange(self.args.way).repeat(repeat)
+        # label = torch.arange(self.args.way).repeat(repeat)
+        label = torch.arange(self.args.way)
         if self.device == 'cuda':
             label = label.type(torch.cuda.LongTensor)
         else:            
@@ -94,47 +111,10 @@ class Trainer():
         train_data, test_data = data[:train_index], data[train_index:]
         return train_data, test_data
 
-    def _train_epoch(self, epoch):
-        """
-        Training logic for an epoch
-
-        :param epoch: Integer, current training epoch.
-        :return: A log that contains average loss and metric in this epoch.
-        """
-        self.model.train()
-        self.train_metrics.reset()
-        for batch_idx, (data, target) in enumerate(self.data_loader):
-            data, target = data.to(self.device), target.to(self.device)
-
-            self.optimizer.zero_grad()
-            output = self.model(data)
-            loss = self.criterion(output, target)
-            loss.backward()
-            self.optimizer.step()
-
-            self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
-            self.train_metrics.update('loss', loss.item())
-            for met in self.metric_ftns:
-                self.train_metrics.update(met.__name__, met(output, target))
-
-            if batch_idx % self.log_step == 0:
-                self.logger.debug('Train Epoch: {} {} Loss: {:.6f}'.format(
-                    epoch,
-                    self._progress(batch_idx),
-                    loss.item()))
-                self.writer.add_image('input', make_grid(data.cpu(), nrow=8, normalize=True))
-
-            if batch_idx == self.len_epoch:
-                break
-        log = self.train_metrics.result()
-
-        if self.do_validation:
-            val_log = self._valid_epoch(epoch)
-            log.update(**{'val_'+k : v for k, v in val_log.items()})
-
-        if self.lr_scheduler is not None:
-            self.lr_scheduler.step()
-        return log
+    def __mean_data(self, train_data: Tensor, test_data: Tensor) -> Tuple[Tensor, Tensor]:
+        train  = torch.tensor([train_data[way::self.args.way].cpu().detach().numpy() for way in range(self.args.way)]).cuda()
+        test  = torch.tensor([test_data[way::self.args.way].cpu().detach().numpy() for way in range(self.args.way)]).cuda()
+        return torch.mean(train, 1), torch.mean(test, 1)
 
     def _valid_epoch(self, epoch):
         """
