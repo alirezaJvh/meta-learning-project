@@ -16,7 +16,7 @@ class Model(nn.Module):
                  mode = 'meta-train') -> None:
         super(Model, self).__init__()
         self.mode = mode
-        self.pretrain = models.resnet18(pretrained = True)
+        self.pretrain = models.resnet34(pretrained = True)
         self.meta_learner = MetaLearner(input_dim = 1000, output_dim = way)
         self.learner = Learner(input_dim = 1000)
         self.update_step = update_step

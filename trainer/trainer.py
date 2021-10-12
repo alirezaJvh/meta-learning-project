@@ -28,6 +28,25 @@ class Trainer():
                  lr_scheduler = None) -> None:
         super().__init__()
 
+        log_base_dir = './runs/'
+        if not osp.exists(log_base_dir):
+            os.mkdir(log_base_dir)
+        meta_base_dir = osp.join(log_base_dir, 'meta')
+        if not osp.exists(meta_base_dir):
+            os.mkdir(meta_base_dir)
+        save_path1 = '_'.join([args.dataset, args.model_type, 'MTL'])
+        save_path2 = 'shot' + str(args.shot) + '_way' + str(args.way) + '_query' + str(args.train_query) + \
+            '_step' + str(args.step_size) + '_gamma' + str(args.gamma) + '_lr1' + str(args.meta_lr) + '_lr2' + str(args.learner_lr) + \
+            '_batch' + str(args.num_batch) + '_maxepoch' + str(args.max_epoch) + \
+            '_baselr' + str(args.base_lr) + '_updatestep' + str(args.update_step) + \
+            '_stepsize' + str(args.step_size) + '_' + args.meta_label
+        args.save_path = meta_base_dir + '/' + save_path1 + '_' + save_path2
+        if os.path.exists(args.save_path):
+            pass
+        else:
+            os.mkdir(args.save_path)
+        # ensure_path(args.save_path)   
+
         self.args = args
         self.model = model        
         self.device = device
@@ -39,21 +58,36 @@ class Trainer():
         # self.save_path = self.__set_save_path()
 
     def train(self):
-        # writer = SummaryWriter(self.save_path)
+                # Set the meta-train log
+        trlog = {}
+        trlog['args'] = vars(self.args)
+        trlog['train_loss'] = []
+        trlog['val_loss'] = []
+        trlog['train_acc'] = []
+        trlog['val_acc'] = []
+        trlog['max_acc'] = 0.0
+        trlog['max_acc_epoch'] = 0
+
+        writer = SummaryWriter(self.args.save_path)
+        global_count = 0
+
         train_label = self.__set_label(self.args.shot)
         for epoch in range(1, self.args.max_epoch):
             self.model.train()
             test_label = self.__set_label(self.args.train_query)
             tqdm_gen = tqdm.tqdm(self.data_loader)
-            self.__train_epoch(epoch, tqdm_gen, train_label, test_label)
+            self.__train_epoch(epoch, tqdm_gen, train_label, test_label, writer, global_count)
 
 
     def __train_epoch(self, 
                       epoch: int, 
                       tqdm_gen: tqdm, 
                       train_label: Tensor, 
-                      test_label: Tensor) -> None:
+                      test_label: Tensor,
+                      writer: SummaryWriter,
+                      global_count: int) -> None:
         for i, batch in enumerate(tqdm_gen, 1):
+            global_count += 1
             if self.device == 'cuda':              
                 data, _ = [_.cuda() for _ in batch]
             else:
@@ -62,11 +96,13 @@ class Trainer():
             train_data, test_data = self.__split_task_data(data)
             test_predict = self.model((train_data, train_label, test_data))
             self.model.freeze_learner()
-            # print('label size')
+            # print('label size')global_count = 0
             # print(test_predict.size())
             # print(test_label.size())
             loss = F.cross_entropy(test_predict, test_label)
             acc = self.count_acc(test_predict, test_label)
+            writer.add_scalar('data/loss', float(loss), global_count)
+            writer.add_scalar('data/acc', float(acc), global_count)
             tqdm_gen.set_description('Epoch {}, Loss={:.4f} Acc={:.4f}'.format(epoch, loss.item(), acc))
             self.optimizer.zero_grad()
             loss.backward()
@@ -102,6 +138,7 @@ class Trainer():
         train_index = self.args.shot * self.args.way
         train_data, test_data = data[:train_index], data[train_index:]
         return train_data, test_data
+    
     def _valid_epoch(self, epoch):
         """
         Validate after training an epoch
