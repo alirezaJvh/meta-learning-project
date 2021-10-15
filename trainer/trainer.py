@@ -35,10 +35,10 @@ class Trainer():
         self.do_validation = self.valid_data_loader is not None
         self.lr_scheduler = lr_scheduler
         self.optimizer = optimizer
-        self.__run_log_path()
+        self.__run_log_path()        
 
     def train(self):
-                # Set the meta-train log
+        # Set the meta-train log
         trlog = {}
         trlog['args'] = vars(self.args)
         trlog['train_loss'] = []
@@ -175,4 +175,3 @@ class Trainer():
             pass
         else:
             os.mkdir(self.args.save_path)
-        sys.exit()
