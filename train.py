@@ -41,7 +41,7 @@ def main(config):
                             pin_memory = True)
     
     # build model architecture, then print to console
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(device)
     
     model = Model(config.way, config.update_step).to(device)
@@ -56,7 +56,6 @@ def main(config):
     trainer = Trainer(model = model,                    
                       optimizer = optimizer,
                       device = device,
-                      len_epoch = config.max_epoch,
                       data_loader = train_loader,
                       args = config,
                       valid_data_loader= val_loader)
@@ -102,7 +101,5 @@ if __name__ == '__main__':
 
 
     args = parser.parse_args()
-    print(args.way)
-    print(args.shot)
-    
+    print(f'way: {args.way}, shot: {args.shot}')
     main(args)

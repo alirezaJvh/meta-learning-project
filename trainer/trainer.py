@@ -12,6 +12,7 @@ from model.model import Model
 from utils import inf_loop, MetricTracker
 from torch.utils.tensorboard import SummaryWriter
 import torch.nn.functional as F
+import sys
 
 class Trainer():
     """
@@ -22,31 +23,10 @@ class Trainer():
                  optimizer: torch.optim,  
                  device: str,
                  args: dict,
-                 len_epoch: int,
                  data_loader: DataLoader, 
                  valid_data_loader: DataLoader, 
                  lr_scheduler = None) -> None:
         super().__init__()
-
-        log_base_dir = './runs/'
-        if not osp.exists(log_base_dir):
-            os.mkdir(log_base_dir)
-        meta_base_dir = osp.join(log_base_dir, 'meta')
-        if not osp.exists(meta_base_dir):
-            os.mkdir(meta_base_dir)
-        save_path1 = '_'.join([args.dataset, args.model_type, 'MTL'])
-        save_path2 = 'shot' + str(args.shot) + '_way' + str(args.way) + '_query' + str(args.train_query) + \
-            '_step' + str(args.step_size) + '_gamma' + str(args.gamma) + '_lr1' + str(args.meta_lr) + '_lr2' + str(args.learner_lr) + \
-            '_batch' + str(args.num_batch) + '_maxepoch' + str(args.max_epoch) + \
-            '_baselr' + str(args.base_lr) + '_updatestep' + str(args.update_step) + \
-            '_stepsize' + str(args.step_size) + '_' + args.meta_label
-        args.save_path = meta_base_dir + '/' + save_path1 + '_' + save_path2
-        if os.path.exists(args.save_path):
-            pass
-        else:
-            os.mkdir(args.save_path)
-        # ensure_path(args.save_path)   
-
         self.args = args
         self.model = model        
         self.device = device
@@ -55,7 +35,7 @@ class Trainer():
         self.do_validation = self.valid_data_loader is not None
         self.lr_scheduler = lr_scheduler
         self.optimizer = optimizer
-        # self.save_path = self.__set_save_path()
+        self.__run_log_path()
 
     def train(self):
                 # Set the meta-train log
@@ -92,13 +72,10 @@ class Trainer():
                 data, _ = [_.cuda() for _ in batch]
             else:
                 data = batch[0]
-                # split train and test data of task
+            # split train and test data of task
             train_data, test_data = self.__split_task_data(data)
             test_predict = self.model((train_data, train_label, test_data))
             self.model.freeze_learner()
-            # print('label size')global_count = 0
-            # print(test_predict.size())
-            # print(test_label.size())
             loss = F.cross_entropy(test_predict, test_label)
             acc = self.count_acc(test_predict, test_label)
             writer.add_scalar('data/loss', float(loss), global_count)
@@ -108,9 +85,6 @@ class Trainer():
             loss.backward()
             self.optimizer.step()
             self.model.unfreeze_learner()
-            # print('label size')
-            # print(test_predict.size())
-            # print(test_label.size())
 
     def count_acc(self, logits, label):
         """The function to calculate the .
@@ -175,3 +149,30 @@ class Trainer():
             current = batch_idx
             total = self.len_epoch
         return base.format(current, total, 100.0 * current / total)
+
+    def __run_log_path(self):
+        log_base_dir = './runs/'
+        if not osp.exists(log_base_dir):
+            os.mkdir(log_base_dir)
+        meta_base_dir = osp.join(log_base_dir, 'meta')
+        if not osp.exists(meta_base_dir):
+            os.mkdir(meta_base_dir)
+        save_path1 = '_'.join([self.args.dataset, self.args.model_type])
+        obj = {
+            'learner_lr': self.args.learner_lr, 
+            'meta_lr': self.args.meta_lr,
+            'batch': self.args.num_batch,
+            'update_step': self.args.update_step, 
+            'epoch': self.args.max_epoch
+        }
+        save_path2 = ''
+        for item in obj:
+            save_path2 += f'_{str(item)}:{obj[item]}'
+            
+        print(save_path2)
+        self.args.save_path = f'{meta_base_dir}/{save_path1}_{save_path2}'
+        if os.path.exists(self.args.save_path):
+            pass
+        else:
+            os.mkdir(self.args.save_path)
+        sys.exit()
