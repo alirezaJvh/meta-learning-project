@@ -105,7 +105,7 @@ class Trainer():
         if self.device == 'cuda':
             label = label.type(torch.cuda.LongTensor)
         else:            
-            label = label.type(torch.LongTensor)
+            label = label.type(torc__set_run_pathh.LongTensor)
         return label
 
     def __split_task_data(self, data) -> Tuple[Tensor, Tensor]:

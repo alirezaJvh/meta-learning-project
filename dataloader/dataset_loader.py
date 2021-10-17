@@ -19,7 +19,7 @@ class DatasetLoader(Dataset):
         folders_path = [osp.join(PATH, label_item) for label_item in label_list if os.path.isdir(osp.join(PATH, label_item))]
         
         for idx, folder_path in enumerate(folders_path):
-            if idx > 3:
+            if idx > 2:
                 break
             image_list_path = os.listdir(folder_path)
             for image_path in image_list_path:
