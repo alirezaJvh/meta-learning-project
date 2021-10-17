@@ -35,10 +35,8 @@ class Trainer():
         if not osp.exists(meta_base_dir):
             os.mkdir(meta_base_dir)
         save_path1 = '_'.join([args.dataset, args.model_type, 'MTL'])
-        save_path2 = 'shot' + str(args.shot) + '_way' + str(args.way) + '_query' + str(args.train_query) + \
-            '_step' + str(args.step_size) + '_gamma' + str(args.gamma) + '_lr1' + str(args.meta_lr) + '_lr2' + str(args.learner_lr) + \
+        save_path2 =  '_step' + str(args.step_size)+ '_lr1' + str(args.meta_lr) \
             '_batch' + str(args.num_batch) + '_maxepoch' + str(args.max_epoch) + \
-            '_baselr' + str(args.base_lr) + '_updatestep' + str(args.update_step) + \
             '_stepsize' + str(args.step_size) + '_' + args.meta_label
         args.save_path = meta_base_dir + '/' + save_path1 + '_' + save_path2
         if os.path.exists(args.save_path):
@@ -95,22 +93,16 @@ class Trainer():
                 # split train and test data of task
             train_data, test_data = self.__split_task_data(data)
             test_predict = self.model((train_data, train_label, test_data))
-            self.model.freeze_learner()
-            # print('label size')global_count = 0
-            # print(test_predict.size())
-            # print(test_label.size())
+            self.model.freeze_learner()x
             loss = F.cross_entropy(test_predict, test_label)
             acc = self.count_acc(test_predict, test_label)
             writer.add_scalar('data/loss', float(loss), global_count)
             writer.add_scalar('data/acc', float(acc), global_count)
-            tqdm_gen.set_description('Epoch {}, Loss={:.4f} Acc={:.4f}'.format(epoch, loss.item(), acc))
-            self.optimizer.zero_grad()
             loss.backward()
+            tqdm_gen.set_description('Epoch {}, Loss={:.4f} Acc={:.4f}'.format(epoch, loss.item(), acc))
             self.optimizer.step()
+            self.optimizer.zero_grad()
             self.model.unfreeze_learner()
-            # print('label size')
-            # print(test_predict.size())
-            # print(test_label.size())
 
     def count_acc(self, logits, label):
         """The function to calculate the .
