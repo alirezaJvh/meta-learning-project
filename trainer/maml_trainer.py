@@ -115,7 +115,8 @@ class MamlTrainer():
         for item in obj:
             save_path2 += f'_{str(item)}:{obj[item]}'
             
-        save_path = f'{meta_base_dir}/{save_path1}_{save_path2}'
+        save_path = f'{log_base_dir}/{save_path1}_{save_path2}'
+        # save_path = f'{save_path2}'
         print(save_path)
         if os.path.exists(save_path):
             pass

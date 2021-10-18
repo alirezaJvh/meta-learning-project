@@ -20,4 +20,6 @@ import torch
 # print(x.grad)
 a = torch.tensor([[2.0, 3.0], [5.0, 4.0]])
 
-print(a.size())
+test = torch.load('saved/log/meta/epoch-10')
+
+print(test[0])
