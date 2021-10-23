@@ -7,6 +7,7 @@ from model.meta_learner import MetaLearner
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import models
+from .maml import BaseLearner
 
 class Model(nn.Module):
 
@@ -78,3 +79,17 @@ class Model(nn.Module):
     def __mean_data(self, data: Tensor) -> Tensor:
         data  = torch.tensor([data[way::self.way].cpu().detach().numpy() for way in range(self.way)]).cuda()
         return torch.mean(data, 1)
+
+class FixedModel(nn.Module):
+    def __init__(self, way, update_step):
+        self.pretrain = models.resnet34(pretrained = True)
+        self.way = way
+        self.meta_learner = BaseLearner(way, 1000)
+        self.learner = Learner(input_dim = 1000)
+        self.update_step = update_step
+
+        for param in self.pretrain.parameters():
+            param.requires_grad = False
+
+    def forward(self, data):
+        pass

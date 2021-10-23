@@ -69,7 +69,7 @@ class Pretrain_Maml(nn.Module):
         fast_weights = list(map(lambda p: p[1] - self.learner_lr * p[0], zip(grad, self.base_learner.parameters())))
         logits_q = self.base_learner(test_embedding, fast_weights)        
 
-        for _ in range(1, 5):
+        for _ in range(1, self.update_step):
             logits = self.base_learner(train_embedding, fast_weights)
             loss = F.cross_entropy(logits, train_label)
             grad = torch.autograd.grad(loss, fast_weights)
