@@ -34,11 +34,18 @@ class MamlTrainer():
         self.device = device
 
     def train(self):
-        save_path = self.__set_run_path()
+        log_folder = 'maml'
+        self.__set_run_path(log_folder)
+        self.__set_trlog(init = True)
         # set summary writer for tensorboard
-        self.writer = SummaryWriter(comment = save_path)
+        self.writer = SummaryWriter(comment = self.save_path)
+
         train_label = self.__set_label(self.args.shot)
         global_count = 0
+
+        self.train_loss_avg = Averager()
+        self.train_acc_avg = Averager()
+        
         for epoch in range(1, self.args.max_epoch):
             # train phase
             self.model.train()
@@ -46,22 +53,35 @@ class MamlTrainer():
             tqdm_gen = tqdm.tqdm(self.data_loader)
             # train each epoch
             self.__train_epoch(epoch, tqdm_gen, train_label, query_label, global_count)
-            # averager
+            # update train averager
+            self.train_loss_avg = self.train_loss_avg.item()
+            self.train_acc_avg = self.train_acc_avg.item() 
+            # val averager
             self.val_loss_avg = Averager()
             self.val_acc_avg = Averager()
             # val phase
             self.model.eval()
             # test label
             test_label = self.__set_label(self.args.val_query)
-            self.__val_epoch(epoch, train_label, test_label)
-            # avg
+            self.__val_epoch(train_label, test_label)
+            # avgtrain_loss_avtrain_loss_avtrain_loss_av
             self.val_loss_avg = self.val_loss_avg.item()
             self.val_acc_avg = self.val_acc_avg.item()
             # tensorboar
             self.writer.add_scalar('data/val_loss', float(self.val_loss_avg), epoch)
             self.writer.add_scalar('data/val_acc', float(self.val_acc_avg), epoch)
             # print val
-            print('Epoch {}, Val, Loss={:.4f} Acc={:.4f}'.format(epoch, self.val_loss_avg, self.val_acc_avg))
+            print(f'Epoch {epoch}, Val, Loss={self.val_loss_avg:.4f} Acc={self.val_acc_avg:.4f}')
+
+            if self.val_acc_averager > trlog['max_acc']:
+                trlog['max_acc'] = self.val_acc_averager
+                trlog['max_acc_epoch'] = epoch
+                self.save_model('max_acc')
+
+            if epoch % 10 == 0:
+                self.__save_model(epoch)
+
+            self.__set_trlog(init = False)
 
         self.writer.close()
 
@@ -87,6 +107,9 @@ class MamlTrainer():
             test_predict = self.model((train_data, train_label, test_data))
             loss = F.cross_entropy(test_predict, test_label)
             acc = self.count_acc(test_predict, test_label)
+            # train_average
+            self.train_loss_avg.add(loss.item())
+            self.train_acc_avg.add(acc)
             # tensorboard
             self.writer.add_scalar('data/loss', float(loss), global_count)
             self.writer.add_scalar('data/acc', float(acc), global_count)
@@ -95,8 +118,6 @@ class MamlTrainer():
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
-            if epoch % 10 == 0:
-                torch.save(self.model.base_learner.parameters(), f'saved/log/meta/epoch-{epoch}')
 
 
     def __val_epoch(self,   
@@ -134,11 +155,12 @@ class MamlTrainer():
             return (pred == label).type(torch.cuda.FloatTensor).mean().item()
         return (pred == label).type(torch.FloatTensor).mean().item()
     
-    def __set_run_path(self):
-        log_base_dir = './runs/'
+
+    def __set_run_path(self, log_folder):
+        log_base_dir = './logs/'
         if not osp.exists(log_base_dir):
             os.mkdir(log_base_dir)
-        meta_base_dir = osp.join(log_base_dir, 'meta')
+        meta_base_dir = osp.join(log_base_dir, log_folder)
         if not osp.exists(meta_base_dir):
             os.mkdir(meta_base_dir)
         save_path1 = '_'.join([self.args.dataset, self.args.model_type])
@@ -153,12 +175,34 @@ class MamlTrainer():
         for item in obj:
             save_path2 += f'_{str(item)}:{obj[item]}'
             
-        save_path = f'{log_base_dir}/{save_path1}_{save_path2}'
+        save_path = f'{meta_base_dir}/{save_path1}_{save_path2}'
         # save_path = f'{save_path2}'
         print(save_path)
         if os.path.exists(save_path):
             pass
         else:
             os.mkdir(save_path)
-        return save_path
+        # return save_path
+        self.save_path = save_path
 
+    
+    def __save_model(self, epoch):
+        torch.save(self.model.base_learner.parameters(), f'saved/{self.save_path}/epoch-{epoch}')
+
+
+    def __set_trlog(self, init = False):
+        if init:
+            self.trlog = {
+                'args': vars(self.args),
+                'train_loss': [],
+                'val_loss': [],
+                'train_acc': [],
+                'val_acc': [],
+                'max_acc': 0.0,
+                'max_acc_epoch': 0
+            }
+        else:
+            self.trlog['train_loss'].append(self.train_loss_avg)
+            self.trlog['train_acc'].append(self.train_acc_avg)
+            self.trlog['val_loss'].append(self.val_loss_avg)
+            self.trlog['val_acc'].append(self.val_acc_avg)
