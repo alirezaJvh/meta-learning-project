@@ -1,10 +1,12 @@
 import argparse
 import collections
 from model.maml import Pretrain_Maml
+from model.model import FixedModel
 import torch
 import numpy as np
 from torch.utils.data.dataloader import DataLoader
 from trainer import MamlTrainer
+from trainer import FixedTrainer
 from utils import prepare_device
 from utils.types import LearningPhase
 from dataloader import DatasetLoader, CategoriesSampler
@@ -43,18 +45,19 @@ def main(config):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(device)
     
-    model = Pretrain_Maml(config.way, config.update_step, config.learner_lr).to(device)
-    
-    # optimizer = torch.optim.Adam([
-    #     {'params': model.base_learner.parameters(), 'lr': config.learner_lr},
-    # ])
+    # model = Pretrain_Maml(config.way, config.update_step, config.learner_lr).to(device)
+
+    model = Pretrain_Maml(config.way, config.update_step, config.learner_lr).to(device)    
+
+    # optimizer = torch.optim.Adam([{'params': filter(lambda p: p.requires_grad, model.pretrain.parameters())}, \
+    #     {'params': model.learner.parameters(), 'lr': 0.001}], lr= 0.0001)  
 
     optimizer = torch.optim.Adam([{'params': filter(lambda p: p.requires_grad, model.pretrain.parameters())}, \
         {'params': model.base_learner.parameters(), 'lr': 0.001}], lr= 0.0001)    
 
 
         
-    # # TODO: set lr scheduler
+    # # TODO: set lr scheduler            
     # # lr_scheduler = config.init_obj('lr_scheduler', torch.optim.lr_scheduler, optimizer)
 
     trainer = MamlTrainer(model = model,                    
@@ -63,6 +66,16 @@ def main(config):
                           data_loader = train_loader,
                           args = config,
                           valid_data_loader= val_loader)
+
+
+    # trainer = FixedTrainer(model = model,                    
+    #                      optimizer = optimizer,
+    #                      device = device,
+    #                      data_loader = train_loader,
+    #                      args = config,
+    #                      valid_data_loader= val_loader)
+
+    
     trainer.train()
 
 
@@ -74,7 +87,7 @@ if __name__ == '__main__':
     parser.add_argument('--dataset', type=str, default='MiniImageNet', choices=['miniImageNet', 'tieredImageNet', 'FC100']) # Dataset
     parser.add_argument('--phase', type=str, default='meta_train', choices=['pre_train', 'meta_train', 'meta_eval']) # Phase
     parser.add_argument('--seed', type=int, default=0) # Manual seed for PyTorch, "0" means using random seed
-    parser.add_argument('--gpu', default='0') # GPU id    
+    parser.add_argument('--gpu', default='1') # GPU id    
     parser.add_argument('--dataset_dir', type=str, default='./data/mini/') # Dataset folder
 
     # Parameters for meta-train phase

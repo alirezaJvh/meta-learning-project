@@ -18,7 +18,7 @@ from utils.util import Averager
 
 
 
-class MamlTrainer():
+class FixedTrainer():
     def __init__(self, 
                  model, 
                  optimizer, 
@@ -34,24 +34,23 @@ class MamlTrainer():
         self.device = device
 
     def train(self):
-        log_folder = 'maml'
+        log_folder = 'fixed_maml'
         self.__set_run_path(log_folder)
         self.__set_trlog(init = True)
         # set summary writer for tensorboard
-        self.writer = SummaryWriter(comment = f'.{self.save_path}')
+        self.writer = SummaryWriter(comment = self.save_path)
 
         train_label = self.__set_label(self.args.shot)
         global_count = 0
 
+        self.train_loss_avg = Averager()
+        self.train_acc_avg = Averager()
         
         for epoch in range(1, self.args.max_epoch):
             # train phase
             self.model.train()
             query_label = self.__set_label(self.args.train_query)
             tqdm_gen = tqdm.tqdm(self.data_loader)
-            # train averager
-            self.train_loss_avg = Averager()
-            self.train_acc_avg = Averager()
             # train each epoch
             self.__train_epoch(epoch, tqdm_gen, train_label, query_label, global_count)
             # update train averager
@@ -74,10 +73,10 @@ class MamlTrainer():
             # print val
             print(f'Epoch {epoch}, Val, Loss={self.val_loss_avg:.4f} Acc={self.val_acc_avg:.4f}')
 
-            if self.val_acc_avg > self.trlog['max_acc']:
-                self.trlog['max_acc'] = self.val_acc_avg
-                self.trlog['max_acc_epoch'] = epoch
-                self.__save_model('max_acc')
+            if self.val_acc_averager > trlog['max_acc']:
+                trlog['max_acc'] = self.val_acc_averager
+                trlog['max_acc_epoch'] = epoch
+                self.save_model('max_acc')
 
             if epoch % 10 == 0:
                 self.__save_model(epoch)
@@ -116,9 +115,9 @@ class MamlTrainer():
             self.writer.add_scalar('data/acc', float(acc), global_count)
             # progress bar
             tqdm_gen.set_description('Epoch {}, Loss={:.4f} Acc={:.4f}'.format(epoch, loss.item(), acc))
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
+            # self.optimizer.zero_grad()
+            # loss.backward()
+            # self.optimizer.step()
 
 
     def __val_epoch(self,   
@@ -178,20 +177,17 @@ class MamlTrainer():
             
         save_path = f'{meta_base_dir}/{save_path1}_{save_path2}'
         # save_path = f'{save_path2}'
+        print(save_path)
         if os.path.exists(save_path):
             pass
         else:
             os.mkdir(save_path)
         # return save_path
-        self.save_path = f'{log_folder}/{save_path1}_{save_path2}'
-        print(self.save_path)
+        self.save_path = save_path
 
     
     def __save_model(self, epoch):
-        path = f'saved/logs/{self.save_path}'
-        if not osp.exists(path):
-            os.mkdir(path)
-        torch.save(self.model.base_learner.parameters(), f'{path}/epoch-{epoch}')
+        torch.save(self.model.base_learner.parameters(), f'saved/{self.save_path}/epoch-{epoch}')
 
 
     def __set_trlog(self, init = False):
