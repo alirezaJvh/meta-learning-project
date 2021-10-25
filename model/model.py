@@ -95,8 +95,8 @@ class FixedModel(nn.Module):
         self.lr = lr
         self.mode = mode
 
-        file = 'MiniImageNet_ResNet_2way_5shot__learner_lr:0.01_meta_lr:0.003_batch:100_update_step:100_epoch:100'
-        self.meta_parameter = torch.load(f'./saved/logs/maml/{file}/max_acc')
+        file = 'MiniImageNet_ResNet__learner_lr:0.01_meta_lr:0.003_batch:100_update_step:100_epoch:100'
+        self.meta_parameter = torch.load(f'./saved/logs/maml/{file}/epoch-max_acc')
 
         # for param in self.meta_parameter:
         #     param.requires_grad = False
@@ -145,7 +145,7 @@ class FixedModel(nn.Module):
 
         optimizer = torch.optim.Adam(self.meta_learner.parameters(), lr = self.lr)
 
-        for _ in range(1, 2):
+        for _ in range(1, self.update_step):
             pred = self.meta_learner(train_embedding)
             loss = F.cross_entropy(pred, train_label)
             optimizer.zero_grad()

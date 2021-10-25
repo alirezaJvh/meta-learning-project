@@ -77,10 +77,10 @@ class FixedTrainer():
             if self.val_acc_avg > self.trlog['max_acc']:
                 self.trlog['max_acc'] = self.val_acc_avg
                 self.trlog['max_acc_epoch'] = epoch
-                self.__save_model('max_acc')
+                # self.__save_model('max_acc')
 
-            if epoch % 10 == 0:
-                self.__save_model(epoch)
+            # if epoch % 10 == 0:
+            #     self.__save_model(epoch)
 
             self.__set_trlog(init = False)
 
