@@ -47,33 +47,33 @@ def main(config):
     
     # model = Pretrain_Maml(config.way, config.update_step, config.learner_lr).to(device)
 
-    model = Pretrain_Maml(config.way, config.update_step, config.learner_lr).to(device)    
-
-    # optimizer = torch.optim.Adam([{'params': filter(lambda p: p.requires_grad, model.pretrain.parameters())}, \
-    #     {'params': model.learner.parameters(), 'lr': 0.001}], lr= 0.0001)  
+    model = FixedModel(config.way, config.update_step, config.learner_lr).to(device)    
 
     optimizer = torch.optim.Adam([{'params': filter(lambda p: p.requires_grad, model.pretrain.parameters())}, \
-        {'params': model.base_learner.parameters(), 'lr': 0.001}], lr= 0.0001)    
+        {'params': model.learner.parameters(), 'lr': 0.001}], lr= 0.0001)  
+
+    # optimizer = torch.optim.Adam([{'params': filter(lambda p: p.requires_grad, model.pretrain.parameters())}, \
+    #     {'params': model.base_learner.parameters(), 'lr': 0.001}], lr= 0.0001)    
 
 
         
     # # TODO: set lr scheduler            
     # # lr_scheduler = config.init_obj('lr_scheduler', torch.optim.lr_scheduler, optimizer)
 
-    trainer = MamlTrainer(model = model,                    
-                          optimizer = optimizer,
-                          device = device,
-                          data_loader = train_loader,
-                          args = config,
-                          valid_data_loader= val_loader)
+    # trainer = MamlTrainer(model = model,                    
+    #                       optimizer = optimizer,
+    #                       device = device,
+    #                       data_loader = train_loader,
+    #                       args = config,
+    #                       valid_data_loader= val_loader)
 
 
-    # trainer = FixedTrainer(model = model,                    
-    #                      optimizer = optimizer,
-    #                      device = device,
-    #                      data_loader = train_loader,
-    #                      args = config,
-    #                      valid_data_loader= val_loader)
+    trainer = FixedTrainer(model = model,                    
+                         optimizer = optimizer,
+                         device = device,
+                         data_loader = train_loader,
+                         args = config,
+                         valid_data_loader= val_loader)
 
     
     trainer.train()
@@ -98,9 +98,9 @@ if __name__ == '__main__':
     parser.add_argument('--train_query', type=int, default=15) # The number of training samples for each class in a task
     parser.add_argument('--val_query', type=int, default=15) # The number of test samples for each class in a task
     parser.add_argument('--meta_lr', type=float, default=0.003) # Learning rate for SS weights
-    parser.add_argument('--learner_lr', type=float, default=0.01) # Learning rate for FC weights
+    parser.add_argument('--learner_lr', type=float, default=0.008) # Learning rate for FC weights
     # parser.add_argument('--base_lr', type=float, default=0.01) # Learning rate for the inner loop
-    parser.add_argument('--update_step', type=int, default=100) # The number of updates for the inner loop
+    parser.add_argument('--update_step', type=int, default=120) # The number of updates for the inner loop
     parser.add_argument('--step_size', type=int, default=10) # The number of epochs to reduce the meta learning rates
     parser.add_argument('--gamma', type=float, default=0.5) # Gamma for the meta-train learning rate decay
     parser.add_argument('--init_weights', type=str, default=None) # The pre-trained weights for meta-train phase
