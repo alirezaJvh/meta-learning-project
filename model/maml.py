@@ -36,13 +36,13 @@ class BaseLearner(nn.Module):
 
 
 class Pretrain_Maml(nn.Module):
-    def __init__(self, way, update_step, learner_lr, mode = 'meta-train'):
+    def __init__(self, way, update_step, learner_lr):
         super(Pretrain_Maml, self).__init__()
         self.way = way
         self.update_step = update_step
-        self.mode = mode
+        # self.mode = mode
         self.learner_lr = learner_lr
-        self.pretrain = models.resnet34(pretrained = True)
+        self.pretrain = models.resnet18(pretrained = True)
         self.base_learner = BaseLearner(way = self.way, z_dim = 1000)
 
         for param in self.pretrain.parameters():
@@ -52,17 +52,12 @@ class Pretrain_Maml(nn.Module):
         train_data, train_label, test_data = data
         train_embedding = self.pretrain(train_data)
         test_embedding = self.pretrain(test_data)
+        return self.meta_forward(train_embedding, train_label, test_embedding)
 
-        if (self.mode == 'meta-train'):
-            return self.meta_train_forward(train_embedding, train_label, test_embedding)
-        else:
-            # TODO: meta test
-            pass
-
-    def meta_train_forward(self, 
-                           train_embedding, 
-                           train_label, 
-                           test_embedding):
+    def meta_forward(self, 
+                    train_embedding, 
+                    train_label, 
+                    test_embedding):
         logits = self.base_learner(train_embedding)
         loss = F.cross_entropy(logits, train_label)
         grad = torch.autograd.grad(loss, self.base_learner.parameters())

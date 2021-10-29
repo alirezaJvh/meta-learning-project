@@ -19,12 +19,14 @@ class DatasetLoader(Dataset):
         folders_path = [osp.join(PATH, label_item) for label_item in label_list if os.path.isdir(osp.join(PATH, label_item))]
         
         for idx, folder_path in enumerate(folders_path):
-            if idx > 2:
+            if idx > 4:
                 break
+            print(idx)
             image_list_path = os.listdir(folder_path)
             for image_path in image_list_path:
                 data.append(osp.join(folder_path, image_path))
                 label.append(idx)
+        print('***')
         
         self.data, self.label = data, label
         self.num_class = len(set(label))
@@ -34,10 +36,12 @@ class DatasetLoader(Dataset):
     def __set_path(self, setname: LearningPhase, dataset_dir: str) -> Tuple[str, List[str]]:
         if setname == LearningPhase.TRAIN:
             PATH = osp.join(dataset_dir, 'train')
+            print('train')
         elif setname == LearningPhase.TEST:
             PATH = osp.join(dataset_dir, 'test')
         elif setname == LearningPhase.VAL:
             PATH = osp.join(dataset_dir, 'val')
+            print('val')
         else:
             raise ValueError('Wrong setname')
         label_list = os.listdir(PATH)

@@ -38,19 +38,20 @@ class MamlTrainer():
         self.__set_run_path(log_folder)
         self.__set_trlog(init = True)
         # set summary writer for tensorboard
-        self.writer = SummaryWriter(comment = self.save_path)
+        self.writer = SummaryWriter(comment = f'.{self.save_path}')
 
         train_label = self.__set_label(self.args.shot)
         global_count = 0
 
-        self.train_loss_avg = Averager()
-        self.train_acc_avg = Averager()
         
-        for epoch in range(1, self.args.max_epoch):
+        for epoch in range(1, self.args.max_epoch + 1):
             # train phase
             self.model.train()
             query_label = self.__set_label(self.args.train_query)
             tqdm_gen = tqdm.tqdm(self.data_loader)
+            # train averager
+            self.train_loss_avg = Averager()
+            self.train_acc_avg = Averager()
             # train each epoch
             self.__train_epoch(epoch, tqdm_gen, train_label, query_label, global_count)
             # update train averager
@@ -61,7 +62,7 @@ class MamlTrainer():
             self.val_acc_avg = Averager()
             # val phase
             self.model.eval()
-            # test label
+            # test labeltqdm_gen = tqdm.tqdm(self.data_loader)
             test_label = self.__set_label(self.args.val_query)
             self.__val_epoch(train_label, test_label)
             # avgtrain_loss_avtrain_loss_avtrain_loss_av
@@ -73,13 +74,15 @@ class MamlTrainer():
             # print val
             print(f'Epoch {epoch}, Val, Loss={self.val_loss_avg:.4f} Acc={self.val_acc_avg:.4f}')
 
-            if self.val_acc_averager > trlog['max_acc']:
-                trlog['max_acc'] = self.val_acc_averager
-                trlog['max_acc_epoch'] = epoch
-                self.save_model('max_acc')
+            if self.val_acc_avg > self.trlog['max_acc']:
+                self.trlog['max_acc'] = self.val_acc_avg
+                self.trlog['max_acc_epoch'] = epoch
+                self.__save_model('max_acc')
+
+            torch.save(self.trlog, osp.join(self.save_path, 'trlog'))
 
             if epoch % 10 == 0:
-                self.__save_model(epoch)
+                self.__save_model(f'epoch{epoch}')
 
             self.__set_trlog(init = False)
 
@@ -88,7 +91,11 @@ class MamlTrainer():
 
     def __set_label(self, repeat):
         label = torch.arange(self.args.way).repeat(repeat)
-        return label.to(self.device)
+        if self.device == 'cuda':
+            label = label.type(torch.cuda.LongTensor)
+        else:
+            label = label.type(torch.LongTensor)
+        return label
 
     def __train_epoch(self, 
                       epoch, 
@@ -98,11 +105,11 @@ class MamlTrainer():
                       global_count):
         for i, batch in enumerate(tqdm_gen, 1):
             global_count += 1
-            if self.device == 'cuda':              
+            if self.device == 'cuda':
                 data, _ = [_.cuda() for _ in batch]
             else:
                 data = batch[0]
-            # split data
+            # split data            
             train_data, test_data = self.__split_task_data(data)
             test_predict = self.model((train_data, train_label, test_data))
             loss = F.cross_entropy(test_predict, test_label)
@@ -122,13 +129,14 @@ class MamlTrainer():
 
     def __val_epoch(self,   
                     train_label,
-                    test_label):
-        for i, batch in enumerate(self.val_loader, 1):
+                    test_label):   
+        tqdm_gen = tqdm.tqdm(self.val_loader)     
+        for i, batch in enumerate(tqdm_gen, 1):
             if self.device == 'cuda':
                 data, _ = [_.cuda for _ in batch]
             else:
                 data = batch[0]
-            train_data, test_data = self.__split_task_data(data)
+            train_data, test_data = self.__split_task_data(data(0))
             logits = self.model((train_data, train_label, test_data))
             loss = F.cross_entropy(logits, test_label)
             acc = self.count_acc(logits, test_label)
@@ -139,6 +147,7 @@ class MamlTrainer():
         
     def __split_task_data(self, data) -> Tuple[Tensor, Tensor]:
         train_index = self.args.shot * self.args.way
+        # print(data)
         train_data, test_data = data[:train_index], data[train_index:]
         return train_data, test_data
 
@@ -177,17 +186,20 @@ class MamlTrainer():
             
         save_path = f'{meta_base_dir}/{save_path1}_{save_path2}'
         # save_path = f'{save_path2}'
-        print(save_path)
         if os.path.exists(save_path):
             pass
         else:
             os.mkdir(save_path)
         # return save_path
         self.save_path = save_path
+        print(self.save_path)
 
     
-    def __save_model(self, epoch):
-        torch.save(self.model.base_learner.parameters(), f'saved/{self.save_path}/epoch-{epoch}')
+    def __save_model(self, name):
+        # path = f'saved/logs/{self.save_path}'
+        # if not osp.exists(path):
+        #     os.mkdir(path)
+        torch.save(dict(params = self.model.state_dict()), f'{self.save_path}/{name}')
 
 
     def __set_trlog(self, init = False):
