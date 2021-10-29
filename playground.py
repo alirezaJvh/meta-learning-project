@@ -1,9 +1,10 @@
-from dataloader import DatasetLoader, CategoriesSampler
+from dataloader import DatasetLoader, Omniglot, CategoriesSampler
 from utils.types import LearningPhase
 from torch.utils.data import DataLoader
 from model.maml import BaseLearner
 import torch
 import argparse
+
 
 # dataset = DatasetLoader(LearningPhase.TRAIN, './data/mini')
 
@@ -22,20 +23,33 @@ import argparse
 # print(x.grad)
 
 def main(config):
-    val_dataset = DatasetLoader(LearningPhase.VAL, config.dataset_dir)
-    val_sampler = CategoriesSampler(val_dataset.label,
-                                    config.num_batch,
-                                    config.way,
-                                    config.shot + config.train_query)    
-    val_loader = DataLoader(dataset = val_dataset,
-                        batch_sampler = val_sampler,
-                        num_workers = 2,
-                        pin_memory = True)
+    omniglot = Omniglot(config.dataset_dir)
+    print('omniglot')
+    for i, data in enumerate(omniglot):
+        if i < 2:
+            print(data)
+            print('*****')
+
+    imageNet = DatasetLoader(LearningPhase.TRAIN, './data/mini/')
+
+    # for i, data in enumerate(imageNet):
+    #     if i < 1:
+    #         print(data)
+    #         print('*****')
+
+    # val_sampler = CategoriesSampler(val_dataset.label,
+    #                                 config.num_batch,
+    #                                 config.way,
+    #                                 config.shot + config.train_query)    
+    # val_loader = DataLoader(dataset = val_dataset,
+    #                     batch_sampler = val_sampler,
+    #                     num_workers = 2,
+    #                     pin_memory = True)
 
 
-    t = iter(val_loader)
-    data = t.next()
-    print(data[0].size())
+    # t = iter(val_loader)
+    # data = t.next()
+    # print(data[0].size())
 
     # test = torch.load('saved/log/meta/epoch-10')
     # model = BaseLearner(2, 1000)
@@ -56,7 +70,7 @@ if __name__ == '__main__':
     parser.add_argument('--phase', type=str, default='meta_train', choices=['pre_train', 'meta_train', 'meta_eval']) # Phase
     parser.add_argument('--seed', type=int, default=0) # Manual seed for PyTorch, "0" means using random seed
     parser.add_argument('--gpu', default='0') # GPU id    
-    parser.add_argument('--dataset_dir', type=str, default='./data/mini/') # Dataset folder
+    parser.add_argument('--dataset_dir', type=str, default='./data/omniglot/') # Dataset folder
 
     # Parameters for meta-train phase
     parser.add_argument('--max_epoch', type=int, default=100) # Epoch number for meta-train phase

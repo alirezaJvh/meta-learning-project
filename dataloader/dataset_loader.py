@@ -71,6 +71,7 @@ class DatasetLoader(Dataset):
 
     def __getitem__(self, idx) -> Tuple[Tensor, int]:
         path, label = self.data[idx], self.label[idx]
+        print(f'{path}   -   {label}')
         image = self.transform(Image.open(path).convert('RGB'))
         return image, label
 
